@@ -23,6 +23,7 @@ namespace cnpy {
         std::vector<unsigned int> shape;
         unsigned int word_size;
         bool fortran_order;
+        char type;
         void destruct() {delete[] data;}
     };
     
@@ -38,7 +39,7 @@ namespace cnpy {
     char BigEndianTest();
     char map_type(const std::type_info& t);
     template<typename T> std::vector<char> create_npy_header(const T* data, const unsigned int* shape, const unsigned int ndims);
-    void parse_npy_header(FILE* fp,unsigned int& word_size, unsigned int*& shape, unsigned int& ndims, bool& fortran_order);
+    void parse_npy_header(FILE* fp,unsigned int& word_size, unsigned int*& shape, unsigned int& ndims, bool& fortran_order, char &arr_type);
     void parse_zip_footer(FILE* fp, unsigned short& nrecs, unsigned int& global_header_size, unsigned int& global_header_offset);
     npz_t npz_load(std::string fname);
     NpyArray npz_load(std::string fname, std::string varname);
@@ -74,7 +75,8 @@ namespace cnpy {
             unsigned int word_size, tmp_dims;
             unsigned int* tmp_shape = 0;
             bool fortran_order;
-            parse_npy_header(fp,word_size,tmp_shape,tmp_dims,fortran_order);
+            char arr_type;
+            parse_npy_header(fp,word_size,tmp_shape,tmp_dims,fortran_order,arr_type);
             assert(!fortran_order);
 
             if(word_size != sizeof(T)) {
@@ -91,6 +93,11 @@ namespace cnpy {
                     std::cout<<"libnpy error: npy_save attempting to append misshaped data to "<<fname<<"\n";
                     assert(shape[i] == tmp_shape[i]);
                 }
+            }
+
+            if (arr_type != map_type(typeid(T))) {
+                std::cout << "libnpy error: npy_save attempting to append mismatched type data to " << fname << "\n";
+                assert(arr_type == map_type(typeid(T)));
             }
             tmp_shape[0] += shape[0];
 

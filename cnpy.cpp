@@ -57,7 +57,7 @@ template<> std::vector<char>& cnpy::operator+=(std::vector<char>& lhs, const cha
     return lhs;
 }
 
-void cnpy::parse_npy_header(FILE* fp, unsigned int& word_size, unsigned int*& shape, unsigned int& ndims, bool& fortran_order) {  
+void cnpy::parse_npy_header(FILE* fp, unsigned int& word_size, unsigned int*& shape, unsigned int& ndims, bool& fortran_order, char &arr_type) {  
     char buffer[256];
     size_t res = fread(buffer,sizeof(char),11,fp);       
     if(res != 11)
@@ -91,7 +91,7 @@ void cnpy::parse_npy_header(FILE* fp, unsigned int& word_size, unsigned int*& sh
     bool littleEndian = (header[loc1] == '<' || header[loc1] == '|' ? true : false);
     assert(littleEndian);
 
-    //char type = header[loc1+1];
+    arr_type = header[loc1+1];
     //assert(type == map_type(T));
 
     std::string str_ws = header.substr(loc1+2);
@@ -126,7 +126,8 @@ cnpy::NpyArray cnpy::load_the_npy_file(FILE* fp) {
     unsigned int* shape;
     unsigned int ndims, word_size;
     bool fortran_order;
-    cnpy::parse_npy_header(fp,word_size,shape,ndims,fortran_order);
+    char arr_type;
+    cnpy::parse_npy_header(fp, word_size, shape, ndims, fortran_order, arr_type);
     unsigned long long size = 1; //long long so no overflow when multiplying by word_size
     for(unsigned int i = 0;i < ndims;i++) size *= shape[i];
 
@@ -136,6 +137,7 @@ cnpy::NpyArray cnpy::load_the_npy_file(FILE* fp) {
     delete[] shape;
     arr.data = new char[size*word_size];    
     arr.fortran_order = fortran_order;
+    arr.type = arr_type;
     size_t nread = fread(arr.data,word_size,size,fp);
     if(nread != size)
         throw std::runtime_error("load_the_npy_file: failed fread");
