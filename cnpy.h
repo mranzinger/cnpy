@@ -15,6 +15,7 @@
 #include<cassert>
 #include<zlib.h>
 #include<map>
+#include<cstdlib>
 
 namespace cnpy {
 
@@ -24,7 +25,11 @@ namespace cnpy {
         unsigned int word_size;
         bool fortran_order;
         char type;
-        void destruct() {delete[] data;}
+        void destruct() 
+        {
+            //delete[] data;
+            std::free(data);
+        }
     };
     
     struct npz_t : public std::map<std::string, NpyArray>
