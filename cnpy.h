@@ -127,7 +127,7 @@ namespace cnpy {
         fclose(fp);
     }
 
-    template<typename T> void npy_save(std::ostream &ss, const T *data, const unsigned int *shape, const unsigned int ndims) {
+    template<typename T> void npy_save_stream(std::ostream &ss, const T *data, const unsigned int *shape, const unsigned int ndims) {
         std::vector<char> header = create_npy_header(data, shape, ndims);
         ss.write(&header[0], sizeof(char) * header.size());
 
