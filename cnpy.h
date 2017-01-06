@@ -16,6 +16,7 @@
 #include<zlib.h>
 #include<map>
 #include<cstdlib>
+#include<iostream>
 
 namespace cnpy {
 
@@ -124,6 +125,16 @@ namespace cnpy {
 
         fwrite(data,sizeof(T),nels,fp);
         fclose(fp);
+    }
+
+    template<typename T> void npy_save(std::ostream &ss, const T *data, const unsigned int *shape, const unsigned int ndims) {
+        std::vector<char> header = create_npy_header(data, shape, ndims);
+        ss.write(&header[0], sizeof(char) * header.size());
+
+        unsigned int nels = 1;
+        for (int i = 0; i < ndims; ++i) nels *= shape[i];
+
+        ss.write(reinterpret_cast<const char*>(data), sizeof(T) * nels);
     }
 
     template<typename T> void npz_save(std::string zipname, std::string fname, const T* data, const unsigned int* shape, const unsigned int ndims, std::string mode = "w")
