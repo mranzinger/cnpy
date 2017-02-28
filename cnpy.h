@@ -92,7 +92,7 @@ namespace cnpy {
             }
             if(tmp_shape.size() != ndims) {
                 std::cout<<"libnpy error: npy_save attempting to append misdimensioned data to "<<fname<<"\n";
-                assert(tmp_dims == ndims);
+                assert(tmp_shape.size() == ndims);
             }
 
             for(int i = 1; i < ndims; i++) {
