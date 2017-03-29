@@ -5,19 +5,20 @@
 #ifndef LIBCNPY_H_
 #define LIBCNPY_H_
 
-#include<string>
-#include<stdexcept>
-#include<sstream>
-#include<vector>
-#include<cstdio>
-#include<typeinfo>
-#include<iostream>
-#include<cassert>
-#include<zlib.h>
-#include<map>
-#include<cstdlib>
-#include<iostream>
-#include<cstdint>
+#include <string>
+#include <stdexcept>
+#include <sstream>
+#include <vector>
+#include <cstdio>
+#include <typeinfo>
+#include <iostream>
+#include <cassert>
+#include <zlib.h>
+#include <map>
+#include <cstdlib>
+#include <iostream>
+#include <cstdint>
+#include <memory>
 
 namespace cnpy {
 
@@ -73,9 +74,9 @@ namespace cnpy {
     }
 
     template<typename T> void npy_save(std::string fname, const T* data, const uint64_t* shape, const uint64_t ndims, std::string mode = "w") {
-        FILE* fp = NULL;
+        std::shared_ptr<FILE> fp;
 
-        if(mode == "a") fp = fopen(fname.c_str(),"r+b");
+        if(mode == "a") fp.reset(fopen(fname.c_str(),"r+b"), &fclose);
 
         if(fp) {
             //file exists. we need to append to it. read the header, modify the array size
@@ -83,47 +84,48 @@ namespace cnpy {
             std::vector<uint64_t> tmp_shape;
             bool fortran_order;
             char arr_type;
-            parse_npy_header(fp,word_size,tmp_shape,fortran_order,arr_type);
+            parse_npy_header(fp.get(),word_size,tmp_shape,fortran_order,arr_type);
             assert(!fortran_order);
 
             if(word_size != sizeof(T)) {
-                std::cout<<"libnpy error: "<<fname<<" has word size "<<word_size<<" but npy_save appending data sized "<<sizeof(T)<<"\n";
-                assert( word_size == sizeof(T) );
+                throw std::runtime_error("libnpy error: " + fname + " has word size " + std::to_string(word_size) + " but npy_save append data sized " + std::to_string(sizeof(T)));
             }
             if(tmp_shape.size() != ndims) {
-                std::cout<<"libnpy error: npy_save attempting to append misdimensioned data to "<<fname<<"\n";
-                assert(tmp_dims == ndims);
+                throw std::runtime_error("libnpy error: npy_save attempting to append misdimensioned data to " + fname);
             }
 
             for(int i = 1; i < ndims; i++) {
                 if(shape[i] != tmp_shape[i]) {
-                    std::cout<<"libnpy error: npy_save attempting to append misshaped data to "<<fname<<"\n";
-                    assert(shape[i] == tmp_shape[i]);
+                    throw std::runtime_error("libnpy error: npy_save attempting to append misshaped data to " + fname);
                 }
             }
 
             if (arr_type != map_type(typeid(T))) {
-                std::cout << "libnpy error: npy_save attempting to append mismatched type data to " << fname << "\n";
-                assert(arr_type == map_type(typeid(T)));
+                throw std::runtime_error("libnpy error: npy_save attempting to append mismatched type data to " + fname);
             }
             tmp_shape[0] += shape[0];
 
-            fseek(fp,0,SEEK_SET);
+            size_t oldHeaderSize = ftell(fp.get());
+
+            fseek(fp.get(),0,SEEK_SET);
             std::vector<char> header = create_npy_header(data,tmp_shape.data(),ndims);
-            fwrite(&header[0],sizeof(char),header.size(),fp);
-            fseek(fp,0,SEEK_END);
+
+            if (oldHeaderSize != header.size())
+                throw std::runtime_error("libnpy error: Cannot append to file because it would change the size of the header from " + std::to_string(oldHeaderSize) + " to " + std::to_string(header.size()));
+
+            fwrite(&header[0],sizeof(char),header.size(),fp.get());
+            fseek(fp.get(),0,SEEK_END);
         }
         else {
-            fp = fopen(fname.c_str(),"wb");
+            fp.reset(fopen(fname.c_str(),"wb"), &fclose);
             std::vector<char> header = create_npy_header(data,shape,ndims);
-            fwrite(&header[0],sizeof(char),header.size(),fp);
+            fwrite(&header[0],sizeof(char),header.size(),fp.get());
         }
 
         uint64_t nels = 1;
         for(int i = 0;i < ndims;i++) nels *= shape[i];
 
-        fwrite(data,sizeof(T),nels,fp);
-        fclose(fp);
+        fwrite(data,sizeof(T),nels,fp.get());
     }
 
     template<typename T> void npy_save_stream(std::ostream &ss, const T *data, const uint64_t *shape, const uint64_t ndims) {
