@@ -76,9 +76,10 @@ namespace cnpy {
     template<typename T> void npy_save(std::string fname, const T* data, const uint64_t* shape, const uint64_t ndims, std::string mode = "w") {
         std::shared_ptr<FILE> fp;
 
-        if(mode == "a") fp.reset(fopen(fname.c_str(),"r+b"), &fclose);
+        if(mode == "a") 
+        {
+            fp.reset(fopen(fname.c_str(),"r+b"), &fclose);
 
-        if(fp) {
             //file exists. we need to append to it. read the header, modify the array size
             unsigned int word_size;
             std::vector<uint64_t> tmp_shape;
@@ -116,7 +117,8 @@ namespace cnpy {
             fwrite(&header[0],sizeof(char),header.size(),fp.get());
             fseek(fp.get(),0,SEEK_END);
         }
-        else {
+        else 
+        {
             fp.reset(fopen(fname.c_str(),"wb"), &fclose);
             std::vector<char> header = create_npy_header(data,shape,ndims);
             fwrite(&header[0],sizeof(char),header.size(),fp.get());
